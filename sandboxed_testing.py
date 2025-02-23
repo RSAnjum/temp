@@ -19,12 +19,16 @@ def setup_driver(profile_name="AdminTestProfile"):
     chrome_options = Options()
     chrome_options.add_argument(f"--user-data-dir={profile_dir}")
     # Bypass "Not Secure" warnings
-    chrome_options.add_argument("--ignore-certificate-errors")  # Ignore SSL certificate errors
-    chrome_options.add_argument("--allow-insecure-localhost")   # Allow insecure localhost connections
-    chrome_options.add_argument("--disable-web-security")       # Disable web security restrictions
+    chrome_options.add_argument("--ignore-certificate-errors")
+    chrome_options.add_argument("--allow-insecure-localhost")
+    chrome_options.add_argument("--disable-web-security")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--headless")  # Uncomment for headless mode
+    chrome_options.add_argument("--headless=new")  # Updated headless mode
+    chrome_options.add_argument("--window-size=1920,1080")  # Set explicit window size
+    
+    # Configure Chrome binary location (from previous installation)
+    chrome_options.binary_location = '/opt/chrome/chrome'
     
     driver = webdriver.Chrome(options=chrome_options)
     return driver
@@ -32,60 +36,71 @@ def setup_driver(profile_name="AdminTestProfile"):
 def login(driver):
     print("Initiating login process...")
     driver.get(LOGIN_URL)
-    time.sleep(2)
-
+    
     try:
-        # Prompt for username and password via terminal
+        # Wait for page to fully load
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.ID, "username"))
+        )
+
+        # Prompt for credentials
         username = input("Enter username: ")
         password = input("Enter password: ")
 
-        # Find login elements
-        username_field = driver.find_element(By.ID, "username")
-        password_field = driver.find_element(By.ID, "password")
-        submit_button = driver.find_element(By.ID, "submit-button")
+        # Find elements with explicit waits
+        username_field = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "username"))
+        )
+        password_field = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "password"))
+        )
+        submit_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "submit-button"))
+        )
 
-        # Enter credentials
+        # Clear fields and enter credentials
+        username_field.clear()
         username_field.send_keys(username)
+        password_field.clear()
         password_field.send_keys(password)
-        submit_button.click()
 
-        # Wait for page to change (indicating login attempt)
-        WebDriverWait(driver, 10).until(
-            EC.url_changes(LOGIN_URL)
+        # Scroll into view and click using JavaScript
+        driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+        driver.execute_script("arguments[0].click();", submit_button)
+
+        # Wait for page to change
+        WebDriverWait(driver, 15).until(
+            EC.url_contains("/admin")
         )
         
-        # Check if login was successful by verifying URL
-        if driver.current_url != LOGIN_URL:
-            print(f"Login successful! Redirected to: {driver.current_url}")
+        # Check login success
+        if "current_users" in driver.current_url:
+            print("Login successful!")
             return True
         else:
-            print("Login failed: Still on login page")
+            print("Login failed - unexpected post-login URL:", driver.current_url)
             return False
 
     except Exception as e:
-        print(f"Login error: {e}")
+        print(f"Login error: {str(e)}")
+        driver.save_screenshot("login_error.png")
         return False
 
 def check_session(driver):
     print("Checking existing session...")
-    driver.get(TARGET_URL)
-    time.sleep(2)
-
     try:
-        # If we're still on login page, session is invalid
-        if "admin" in driver.current_url and "current_users" in driver.current_url:
-            print("Valid session found! Already logged in.")
+        driver.get(TARGET_URL)
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        
+        if "current_users" in driver.current_url:
+            print("Valid session found!")
             return True
-        elif "admin" in driver.current_url and "current_users" not in driver.current_url:
-            print("No valid session. Redirected to login page.")
-            return False
-        else:
-            print(f"Unexpected URL after session check: {driver.current_url}")
-            return False
+        return False
     except Exception as e:
         print(f"Session check error: {e}")
         return False
-
 def main():
     driver = setup_driver("AdminTestProfile")
     try:
