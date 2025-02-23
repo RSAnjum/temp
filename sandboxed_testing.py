@@ -74,7 +74,7 @@ def login(driver):
         )
         
         # Check login success
-        if "current_users" in driver.current_url:
+        if "status_overview" in driver.current_url:
             print("Login successful!")
             return True
         else:
