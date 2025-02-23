@@ -56,13 +56,13 @@ def login(driver):
     
     country_options = driver.find_elements(By.CLASS_NAME, "react-select__option")
     for option in country_options:
-        if "+44" in option.text:
+        if "+92" in option.text:
             ActionChains(driver).move_to_element(option).click().perform()
             break
     
     # Enter phone number (no click needed)
     phone_input = driver.find_element(By.CLASS_NAME, "phone-number")
-    phone_input.send_keys("7899262980")
+    phone_input.send_keys("3157726586")
     
     # Click Get PIN button with mouse event
     get_pin_button = driver.find_element(By.CLASS_NAME, "get-pin")
