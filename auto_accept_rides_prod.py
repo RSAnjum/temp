@@ -94,10 +94,12 @@ def check_for_matching_rides(driver):
     logging.info("Listening for rides...")
     try:
         wait = WebDriverWait(driver, 10)  # Wait up to 10 seconds for elements
+        no_rides_counter = 0  # Counter for consecutive no matching rides
         
         while True:  # Keep looping until no more rides are processed
             # Find all ride rows
             ride_rows = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.available-rides-table tbody tr')))
+            logging.info(f"Found {len(ride_rows)} ride rows.")
             rides_processed = False  # Track if we processed any rides this loop
             
             for row in ride_rows:
@@ -105,7 +107,13 @@ def check_for_matching_rides(driver):
                     # Extract ride details
                     ride_type = row.find_element(By.CLASS_NAME, 'class').text.strip()
                     payout_text = row.find_element(By.CLASS_NAME, 'payout').text.replace('£', '').strip()
-                    payout = float(payout_text)
+                    try:
+                        payout = float(payout_text)
+                    except ValueError:
+                        logging.warning(f"Could not convert payout text to float: {payout_text}")
+                        continue  # Skip this ride if payout conversion fails
+
+                    logging.info(f"Processing ride: {ride_type} - £{payout}")
                     accept_button = row.find_element(By.CLASS_NAME, 'button.button-outline')
 
                     # Check if this ride matches any parameters
@@ -130,6 +138,7 @@ def check_for_matching_rides(driver):
                             
                             accepted_rides.remove(ride_key)  # Clear from tracking
                             rides_processed = True
+                            no_rides_counter = 0  # Reset counter after processing a ride
                             break  # Exit parameter loop after accepting
                 except Exception as e:
                     logging.warning(f"Error processing ride: {e}")
@@ -137,9 +146,14 @@ def check_for_matching_rides(driver):
             
             if not rides_processed:
                 logging.info("No more matching rides found.")
-                break  # Exit if no rides were processed this time
-            
-            time.sleep(1)  # Small delay before re-checking the table
+                no_rides_counter += 1  # Increment counter if no rides were processed
+                if no_rides_counter >= 5:  # Refresh page after 5 consecutive no matching rides
+                    logging.info("Refreshing page due to no matching rides found for 5 consecutive checks.")
+                    driver.refresh()
+                    no_rides_counter = 0  # Reset counter after refresh
+                time.sleep(5)  # Wait for 5 seconds before re-checking the table
+            else:
+                time.sleep(1)  # Small delay before re-checking the table
         
     except Exception as e:
         logging.error(f"Error in ride checking: {e}")
