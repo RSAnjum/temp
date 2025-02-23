@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="20px" height="14px" viewBox="0 0 20 14" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: sketchtool 58 (101010) - https://sketch.com -->
+    <!-- <title>525C8187-453A-499E-8046-2F216F9BD8B0</title> -->
+    <desc>Created with sketchtool.</desc>
+    <g id="VD" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="My-Rides" transform="translate(-808.000000, -308.000000)">
+            <g id="Group-21" transform="translate(544.000000, 295.000000)">
+                <g id="Group-8" transform="translate(254.000000, 0.000000)">
+                    <g id="ico_licenseplate" transform="translate(8.000000, 8.000000)">
+                        <path d="M7.99,12.49 L15.89,12.49" id="Shape" stroke="#191919" stroke-width="2"></path>
+                        <path d="M5.02,9.49 L18.98,9.49" id="Shape" stroke="#191919" stroke-width="2"></path>
+                        <polygon id="Shape" stroke="#191919" stroke-width="2" points="12 16.28 12 16.28 16.92 16.28 16.92 17.98 20.59 17.98 21 17.98 21 10.79 19.03 9.47 17.26 6.02 12 6.02 12 6.02 12 6.02 6.74 6.02 4.97 9.47 3 10.79 3 17.98 3.41 17.98 7.08 17.98 7.08 16.28 12 16.28"></polygon>
+                        <path d="M17.1,12.49 L20.94,12.49" id="Shape" stroke="#191919" stroke-width="2"></path>
+                        <path d="M3.06,12.49 L6.9,12.49" id="Shape" stroke="#191919" stroke-width="2"></path>
+                        <path d="M9,12.49 L15,12.49" id="Shape" stroke="#191919" stroke-width="2"></path>
+                        <rect id="Rectangle-path" x="0" y="0" width="24" height="24"></rect>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,25 @@
+{
+  "name": "auto-accept-rides",
+  "version": "1.0.0",
+  "description": "1. make a script that loads credentials from the website/ stores the session token\r 2. use those credentials in script to test functionality of V1.0 script\r 3. deply on docker on local machine and run test cases\r 4. check to see if the credentials expire\r 5. iterative improvements",
+  "main": "tampermonkeyscript.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SkullCrawler/auto-accept-rides.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SkullCrawler/auto-accept-rides/issues"
+  },
+  "homepage": "https://github.com/SkullCrawler/auto-accept-rides#readme",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "puppeteer": "^24.2.1",
+    "yarn": "^1.22.22"
+  }
+}
