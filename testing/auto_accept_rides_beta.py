@@ -25,7 +25,6 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 # Constants
-BASE_URL = "https://dcp.orange.sixt.com"
 RIDE_PARAMETERS = [
     {"type": "Ride", "payout": 150, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
     {"type": "Business", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
@@ -52,7 +51,7 @@ def retry(max_attempts=3, delay=2):
     return decorator
 
 class RideAcceptor:
-    def __init__(self):
+    def _init_(self):
         self.driver = None
         self.accepted_rides = set()
         self.wait_timeout = 15
@@ -63,7 +62,7 @@ class RideAcceptor:
         chrome_options.add_argument(f"--user-data-dir={os.path.join(os.getcwd(), 'AutoAcceptProfile')}")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--headless=new")
+        # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--remote-debugging-port=9222")
@@ -78,7 +77,7 @@ class RideAcceptor:
     @retry(max_attempts=3)
     def login(self):
         logger.info("Initiating login process...")
-        self.driver.get(f"{BASE_URL}/login")
+        self.driver.get(f"https://dcp.orange.sixt.com/login")
         
         # Country code selection
         self.wait().until(EC.element_to_be_clickable(
@@ -86,7 +85,7 @@ class RideAcceptor:
         )).click()
         
         country_option = self.wait().until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[contains(@class, 'react-select__option') and contains(., '+44')]")
+            (By.XPATH, "//div[contains(@class, 'react-select__option') and contains(., '+92')]")
         ))
         self.driver.execute_script("arguments[0].click();", country_option)
         
@@ -94,7 +93,7 @@ class RideAcceptor:
         phone_field = self.wait().until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, "input.phone-number")
         ))
-        phone_field.send_keys("7899262980")
+        phone_field.send_keys("3157726586")
         
         # Get PIN
         self.wait().until(EC.element_to_be_clickable(
@@ -117,7 +116,7 @@ class RideAcceptor:
         )
     
     def check_session(self):
-        self.driver.get(f"{BASE_URL}/availableRides")
+        self.driver.get(f"https://dcp.orange.sixt.com/availableRides")
         return "login" not in self.driver.current_url
     
     def process_rides(self):
@@ -220,7 +219,7 @@ class RideAcceptor:
             if not self.check_session() and not self.login():
                 raise Exception("Login failed")
                 
-            self.driver.get(f"{BASE_URL}/availableRides")
+            self.driver.get(f"https://dcp.orange.sixt.com/availableRides")
             self.process_rides()
             
         except Exception as e:
@@ -228,5 +227,5 @@ class RideAcceptor:
         finally:
             self.driver.quit()
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     RideAcceptor().run()
