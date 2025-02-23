@@ -195,18 +195,24 @@ def handle_modal_reopen(driver, callback):
 def select_driver_and_vehicle(driver, driver_name, vehicle_name):
     logging.info(f"Selecting driver: {driver_name} and vehicle: {vehicle_name}")
     wait = WebDriverWait(driver, 10)
-    
+        
     try:
         driver_dropdown = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#react-select-2-input")))
         parent_dropdown = driver_dropdown.find_element(By.XPATH, "..")
         
         if is_dropdown_on_select(parent_dropdown):
-            ActionChains(driver).move_to_element(parent_dropdown).click().perform()  # Already using mouse event
-            time.sleep(0.2)
-            
+            ActionChains(driver).move_to_element(parent_dropdown).click().perform()
+            # Wait for dropdown menu to appear
+            try:
+                WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".react-select__menu"))
+                )
+            except TimeoutException:
+                logging.error("Driver dropdown menu did not open.")
+                return
             driver_option = get_dropdown_option(driver, driver_name)
             if driver_option:
-                ActionChains(driver).move_to_element(driver_option).click().perform()  # Mouse event for option
+                driver.execute_script("arguments[0].click();", driver_option)
                 logging.info(f"Driver selected: {driver_name}")
                 select_vehicle(driver, vehicle_name)
             else:
@@ -238,6 +244,8 @@ def select_vehicle(driver, vehicle_name):
         vehicle_dropdown = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#react-select-3-input")))
         parent_dropdown = vehicle_dropdown.find_element(By.XPATH, "..")
         
+        logging.info(f"Available vehicle options: {[option.text for option in driver.find_elements(By.CLASS_NAME, 'react-select__option')]}")
+
         if is_dropdown_on_select(parent_dropdown):
             ActionChains(driver).move_to_element(parent_dropdown).click().perform()  # Already using mouse event
             time.sleep(0.2)
@@ -257,7 +265,6 @@ def select_vehicle(driver, vehicle_name):
                 # ActionChains(driver).move_to_element(accept_button).click().perform()
                 # logging.info("Accept button pressed")
 
-                
                 time.sleep(10)
                 driver.refresh()
             else:
@@ -290,10 +297,18 @@ def is_dropdown_on_select(dropdown):
 
 def get_dropdown_option(driver, text):
     try:
-        options = driver.find_elements(By.CLASS_NAME, "react-select__option")
+        # Wait for the dropdown menu to appear
+        menu = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".react-select__menu"))
+        )
+        options = menu.find_elements(By.CLASS_NAME, "react-select__option")
         for option in options:
             if option.text.strip() == text:
                 return option
+        logging.warning(f"Option '{text}' not found in menu. Available options: {[o.text.strip() for o in options]}")
+        return None
+    except TimeoutException:
+        logging.error("Dropdown menu did not appear.")
         return None
     except Exception as e:
         logging.error(f"Error getting dropdown option: {e}")
@@ -305,10 +320,13 @@ def main():
     if not os.path.exists(profile_dir):
         os.makedirs(profile_dir)
     chrome_options.add_argument(f"--user-data-dir={profile_dir}")
+    chrome_options.add_argument("--headless")  # Uncomment for headless mode
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--headless")  # Uncomment for headless mode
 
     driver = webdriver.Chrome(options=chrome_options)
 
