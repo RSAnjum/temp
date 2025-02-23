@@ -1,59 +1,56 @@
 #!/bin/bash
 
-# Exit on any error during setup
-set -e
+# Update system
+sudo yum update -y
 
-# Update package list and install base dependencies
-echo "Installing base dependencies..."
-sudo apt-get update
-sudo apt-get install -y python3 python3-pip python3-venv wget unzip curl gnupg
+# Install necessary packages
+sudo yum install -y python3 git
+curl -O https://bootstrap.pypa.io/get-pip.py
+python3 get-pip.py
+curl -O https://bootstrap.pypa.io/get-pip.py
+python3 get-pip.py
+sudo yum install -y Xvfb xorg-x11-xauth xorg-x11-utils xorg-x11-server-utils
+sudo yum install -y libXfont xorg-x11-fonts* xorg-x11-server-Xvfb
+sudo yum install -y alsa-lib cups-libs gtk3 libXScrnSaver libXcomposite libXcursor libXi libXtst nss pango GConf2 at-spi2-core
+sudo yum install -y unzip jq curl
 
-# Set non-interactive mode for apt
-export DEBIAN_FRONTEND=noninteractive
-echo "DEBIAN_FRONTEND set to noninteractive"
+# Get the latest stable version of Chrome
+LATEST_VERSION=$(curl -s https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json | jq -r '.channels.Stable.version')
+echo "Latest stable version: $LATEST_VERSION"
 
-# Add Google's signing key
-echo "Adding Google Chrome signing key..."
-wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+# Download Chrome and ChromeDriver
+wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$LATEST_VERSION/linux64/chrome-linux64.zip
+wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$LATEST_VERSION/linux64/chromedriver-linux64.zip
 
-# Add Chrome repository
-echo "Adding Google Chrome repository..."
-sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list'
+# Unzip and install
+unzip chrome-linux64.zip
+unzip chromedriver-linux64.zip
 
-# Install Chrome
-echo "Installing Google Chrome..."
-sudo apt-get update
-sudo apt-get install -y google-chrome-stable
+# Move to standard locations
+sudo mv chrome-linux64 /opt/chrome
+sudo mv chromedriver-linux64 /opt/chromedriver
 
-# Get Chrome major version
-echo "Detecting Chrome version..."
-CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d '.' -f 1)
-echo "Chrome major version: $CHROME_VERSION"
+# Create symlinks
+sudo ln -s /opt/chrome/chrome /usr/local/bin/google-chrome
+sudo ln -s /opt/chromedriver/chromedriver /usr/local/bin/chromedriver
 
-# Download and install chromedriver-linux64
-echo "Downloading and installing chromedriver-linux64 $LATEST_VERSION..."
-sudo apt install chromium-chromedriver
+# Verify versions
+google-chrome --version
+chromedriver --version
 
-# Create virtual environment
-echo "Setting up virtual environment..."
-rm -rf myenv   # Clean any old environment
-python3 -m venv myenv
+# Install additional dependencies
+sudo curl https://intoli.com/install-google-chrome.sh | bash
+sudo ln -s /usr/bin/google-chrome /usr/bin/chromium
+chromedriver --version
+google-chrome --version
+sudo yum install -y gtk3-devel gtk2-devel libnotify-devel GConf2 nss libXScrnSaver alsa-lib
 
-# Explicitly use the virtual environment's pip to install dependencies
-echo "Installing Python dependencies from requirements.txt..."
-VENV_PIP="./myenv/bin/pip"
-if [ -f "requirements.txt" ]; then
-    $VENV_PIP install --no-cache-dir -r requirements.txt
-    echo "Python dependencies installed."
-else
-    echo "Error: requirements.txt not found. Installing selenium as a fallback..."
-    $VENV_PIP install --no-cache-dir selenium
-fi
+# Install Python packages
+pip3 install selenium webdriver-manager pyvirtualdisplay
 
-# Verify pip works by listing installed packages
-echo "Verifying pip installation..."
-$VENV_PIP list
+# Setup virtual framebuffer and DISPLAY environment
+Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+export DISPLAY=:99
 
-echo "Setup complete. Virtual environment 'myenv' is ready."
-echo "Activate it with: source myenv/bin/activate"
-echo "Run your script with: ./myenv/bin/python auto_accept_rides_prod.py"
+echo "Setup complete."
+echo "Run your script with:python auto_accept_rides_prod.py"
