@@ -159,7 +159,7 @@ def check_for_matching_rides(driver):
                     logging.warning(f"Error processing ride: {e}", exc_info=True)
                     continue  # Move on to the next ride
 
-                time.sleep(1)  # Shorter delay if a ride was processed
+                #time.sleep(1)  # Shorter delay if a ride was processed
 
     except Exception as e:
         logging.error(f"Error in ride checking: {e}", exc_info=True)
