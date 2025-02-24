@@ -276,6 +276,7 @@ def select_vehicle(driver, vehicle_name, ride_key):
             )
             ActionChains(driver).move_to_element(cancel_button).click().perform()
             logging.info("Cancel button pressed (testing mode)")
+            accepted_rides.add(ride_key)
 
             # Example: wait until the modal is no longer visible
             WebDriverWait(driver, 10).until(
