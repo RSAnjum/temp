@@ -220,7 +220,7 @@ def select_driver_and_vehicle(driver, driver_name, vehicle_name, ride_key):
             if driver_option:
                 driver.execute_script("arguments[0].click();", driver_option)
                 logging.info(f"Driver selected: {driver_name}")
-                select_vehicle(driver, vehicle_name)
+                select_vehicle(driver, vehicle_name, ride_key)
             else:
                 logging.warning(f"Driver '{driver_name}' not found in dropdown.")
         else:
