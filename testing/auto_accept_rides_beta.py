@@ -43,6 +43,8 @@ RIDE_PARAMETERS = [
 ]
 
 accepted_rides = set()
+ignored_rides = set()
+
 
 def login(driver):
     logging.info("Initiating login process...")
@@ -127,8 +129,10 @@ def check_for_matching_rides(driver):
                     ride_key = f"{ride_type}-{payout}"
                     for param in RIDE_PARAMETERS:
                         if (ride_type == param["type"] and 
-                            payout >= param["payout"] and 
-                            ride_key not in accepted_rides):
+                        payout >= param["payout"] and 
+                        ride_key not in accepted_rides and 
+                        ride_key not in ignored_rides):
+
                             logging.info(f"Accepting ride: {ride_type} - £{payout}")
                             accepted_rides.add(ride_key)
 
@@ -140,9 +144,8 @@ def check_for_matching_rides(driver):
 
 
                             # Handle modal with callback for driver and vehicle selection
-                            handle_modal_reopen(driver, lambda: select_driver_and_vehicle(
-                                driver, param["driver"], param["vehicle"]
-                            ))
+                            handle_modal_reopen(driver, lambda: select_driver_and_vehicle(driver, param["driver"], param["vehicle"], ride_key))
+
                             
                             # Wait for modal to close before proceeding
                             wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, "modal")))
@@ -192,7 +195,7 @@ def handle_modal_reopen(driver, callback):
         logging.error(f"Modal handling error: {e}", exc_info=True)
         refresh_driver(driver)
 
-def select_driver_and_vehicle(driver, driver_name, vehicle_name):
+def select_driver_and_vehicle(driver, driver_name, vehicle_name, ride_key):
     """Select the given driver and vehicle from the respective dropdowns."""
     logging.info(f"Selecting driver: {driver_name} and vehicle: {vehicle_name}")
     wait = WebDriverWait(driver, 10)
@@ -235,7 +238,8 @@ def select_driver_and_vehicle(driver, driver_name, vehicle_name):
         logging.error(f"Unexpected error selecting driver: {e}", exc_info=True)
         refresh_driver(driver)
 
-def select_vehicle(driver, vehicle_name):
+def select_vehicle(driver, vehicle_name, ride_key):
+
     """Select the given vehicle from the vehicle dropdown and cancel acceptance if not found."""
     logging.info(f"Selecting vehicle: {vehicle_name}")
     wait = WebDriverWait(driver, 10)
@@ -261,18 +265,10 @@ def select_vehicle(driver, vehicle_name):
                 ActionChains(driver).move_to_element(vehicle_option).click().perform()
                 logging.info(f"Vehicle selected: {vehicle_name}")
             else:
-                logging.warning(f"Vehicle '{vehicle_name}' not found in dropdown. Cancelling ride acceptance.")
-                # Attempt to click the cancel button if the desired vehicle is missing
-                try:
-                    cancel_button = wait.until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, ".close-button.btn.btn-primary"))
-                    )
-                    ActionChains(driver).move_to_element(cancel_button).click().perform()
-                    logging.info("Cancel button pressed")
-                except Exception as e:
-                    logging.error(f"Failed to cancel ride acceptance: {e}", exc_info=True)
-                    refresh_driver(driver)
-                return  # Exit early as vehicle selection failed
+                logging.warning(f"Vehicle '{vehicle_name}' not found for ride {ride_key}. Ignoring this ride in future scans.")
+                ignored_rides.add(ride_key)
+                return  # Exit early so that this ride isn’t pursued further
+
 
             # When push to production, replace the cancel button click with acceptance
             cancel_button = wait.until(
