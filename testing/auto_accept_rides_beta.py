@@ -151,7 +151,7 @@ def check_for_matching_rides(driver):
                             wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, "modal")))
                             logging.info("Modal closed successfully.")
 
-                            accepted_rides.remove(ride_key)  # Clear from tracking
+                            #accepted_rides.remove(ride_key)  # Clear from tracking
                             rides_processed = True
                             no_rides_counter = 0  # Reset counter after processing a ride
                             break  # Exit parameter loop after accepting
