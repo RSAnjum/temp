@@ -37,7 +37,7 @@ logger.addHandler(stream_handler)
 RIDE_PARAMETERS = [
     {"type": "Ride", "payout": 150, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
     {"type": "Business", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
-    {"type": "First", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "KM19 WDS"},
+    {"type": "First", "payout": 100, "driver": "Raza Ul Habib Tahir", "vehicle": "ME19 MKN"},
     {"type": "Business XL", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "KX19UBY"},
     {"type": "Ride XL", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "KX19UBY"}
 ]
@@ -100,7 +100,6 @@ def check_for_matching_rides(driver):
     logging.info("Listening for rides...")
     try:
         wait = WebDriverWait(driver, 10)  # Wait up to 10 seconds for elements
-        no_rides_counter = 0  # Counter for consecutive no matching rides
 
         while True:  # Loop continuously to process rides
             # Find all ride rows
@@ -135,7 +134,10 @@ def check_for_matching_rides(driver):
 
                             # Click the accept button
                             ActionChains(driver).move_to_element(accept_button).click().perform()
-                            time.sleep(2)  # Allow time for modal to appear
+                            modal = WebDriverWait(driver, 10).until(
+                                EC.visibility_of_element_located((By.CLASS_NAME, "modal"))
+                            )
+
 
                             # Handle modal with callback for driver and vehicle selection
                             handle_modal_reopen(driver, lambda: select_driver_and_vehicle(
@@ -154,15 +156,6 @@ def check_for_matching_rides(driver):
                     logging.warning(f"Error processing ride: {e}", exc_info=True)
                     continue  # Move on to the next ride
 
-            if not rides_processed:
-                logging.info("No more matching rides found.")
-                no_rides_counter += 1
-                if no_rides_counter >= 5:
-                    logging.info("No matching rides for 5 consecutive checks; refreshing page.")
-                    refresh_driver(driver)
-                    no_rides_counter = 0  # Reset counter after refresh
-                time.sleep(5)  # Wait before re-checking the table
-            else:
                 time.sleep(1)  # Shorter delay if a ride was processed
 
     except Exception as e:
@@ -258,7 +251,10 @@ def select_vehicle(driver, vehicle_name):
 
         if is_dropdown_on_select(parent_dropdown):
             ActionChains(driver).move_to_element(parent_dropdown).click().perform()
-            time.sleep(0.2)  # Brief pause for the dropdown animation
+            WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, ".react-select__menu"))
+            )
+
             
             vehicle_option = get_dropdown_option(driver, vehicle_name)
             if vehicle_option:
@@ -275,7 +271,7 @@ def select_vehicle(driver, vehicle_name):
                     logging.info("Cancel button pressed")
                 except Exception as e:
                     logging.error(f"Failed to cancel ride acceptance: {e}", exc_info=True)
-                refresh_driver(driver)
+                    refresh_driver(driver)
                 return  # Exit early as vehicle selection failed
 
             # When push to production, replace the cancel button click with acceptance
@@ -285,7 +281,11 @@ def select_vehicle(driver, vehicle_name):
             ActionChains(driver).move_to_element(cancel_button).click().perform()
             logging.info("Cancel button pressed (testing mode)")
 
-            time.sleep(10)
+            # Example: wait until the modal is no longer visible
+            WebDriverWait(driver, 10).until(
+                EC.invisibility_of_element_located((By.CLASS_NAME, "modal"))
+            )
+
             refresh_driver(driver)
         else:
             logging.info("Vehicle dropdown not in 'Select' state.")
