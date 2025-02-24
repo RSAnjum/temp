@@ -36,10 +36,10 @@ logger.addHandler(stream_handler)
 # Define ride parameters (unchanged)
 RIDE_PARAMETERS = [
     {"type": "Ride", "payout": 150, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
-    {"type": "Business", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
-    {"type": "First", "payout": 100, "driver": "Raza Ul Habib Tahir", "vehicle": "ME19 MKN"},
-    {"type": "Business XL", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "KX19UBY"},
-    {"type": "Ride XL", "payout": 120, "driver": "Raza Ul Habib Tahir", "vehicle": "KX19UBY"}
+    {"type": "Business", "payout": 85, "driver": "Raza Ul Habib Tahir", "vehicle": "FR19 DZG"},
+    {"type": "First", "payout": 90, "driver": "Raza Ul Habib Tahir", "vehicle": "KM19 WDS"},
+    {"type": "Business XL", "payout": 150, "driver": "Raza Ul Habib Tahir", "vehicle": "KX19UBY"},
+    {"type": "Ride XL", "payout": 150, "driver": "Raza Ul Habib Tahir", "vehicle": "KX19UBY"}
 ]
 
 accepted_rides = set()
@@ -58,13 +58,13 @@ def login(driver):
     
     country_options = driver.find_elements(By.CLASS_NAME, "react-select__option")
     for option in country_options:
-        if "+92" in option.text:
+        if "+44" in option.text:
             ActionChains(driver).move_to_element(option).click().perform()
             break
     
     # Enter phone number (no click needed)
     phone_input = driver.find_element(By.CLASS_NAME, "phone-number")
-    phone_input.send_keys("3157726586")
+    phone_input.send_keys("7713850660")
     
     # Click Get PIN button with mouse event
     get_pin_button = driver.find_element(By.CLASS_NAME, "get-pin")
@@ -152,7 +152,6 @@ def check_for_matching_rides(driver):
                             wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, "modal")))
                             logging.info("Modal closed successfully.")
 
-                            #accepted_rides.remove(ride_key)  # Clear from tracking
                             rides_processed = True
                             no_rides_counter = 0  # Reset counter after processing a ride
                             break  # Exit parameter loop after accepting
@@ -272,11 +271,14 @@ def select_vehicle(driver, vehicle_name, ride_key):
 
 
             # When push to production, replace the cancel button click with acceptance
-            cancel_button = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, ".close-button.btn.btn-primary"))
+            accept_button = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, ".update-button.btn.btn-primary"))
             )
-            ActionChains(driver).move_to_element(cancel_button).click().perform()
-            logging.info("Cancel button pressed (testing mode)")
+            ActionChains(driver).move_to_element(accept_button).click().perform()
+            logging.info("Accept button pressed (testing mode)")
+
+            
+            
             accepted_rides.add(ride_key)
 
             # Example: wait until the modal is no longer visible
