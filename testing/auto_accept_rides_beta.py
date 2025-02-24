@@ -104,6 +104,7 @@ def check_for_matching_rides(driver):
         wait = WebDriverWait(driver, 10)  # Wait up to 10 seconds for elements
 
         while True:  # Loop continuously to process rides
+            time.sleep(1)
             # Find all ride rows
             ride_rows = wait.until(
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.available-rides-table tbody tr'))
