@@ -127,10 +127,14 @@ def accept_new_ride(driver, existing_ids):
         if new_ids:
             new_id = new_ids[0]
             logging.info(f"New reservation ID detected: {new_id}")
-            accept_button = wait.until(EC.element_to_be_clickable((
-                By.CSS_SELECTOR, f".reservation-id:contains('{new_id}') ~ .accept-ride button.button"
-            )))
-            ActionChains(driver).click(accept_button).perform()
+            # Find the row containing the new_id
+            row_elements = driver.find_elements(By.CSS_SELECTOR, ".reservation-row")
+            for row in row_elements:
+                id_element = row.find_element(By.CSS_SELECTOR, ".reservation-id")
+                if id_element.text.strip() == new_id:
+                    accept_button = row.find_element(By.CSS_SELECTOR, ".accept-ride button.button")
+                    ActionChains(driver).click(accept_button).perform()
+                    break
             logging.info(f"Clicked 'Accept' button for reservation ID: {new_id}")
             return new_id
         else:
