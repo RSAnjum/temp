@@ -120,7 +120,7 @@ def get_reservation_ids(driver):
 def accept_new_ride(driver, existing_ids):
     """Identify the new reservation ID and click its Accept button."""
     try:
-        wait = WebDriverWait(driver, 2, poll_frequency=0.1)  # Reduced timeout from 3 to 2
+        wait = WebDriverWait(driver, 10, poll_frequency=0.5)  # Reduced timeout from 3 to 2
         current_ids = get_reservation_ids(driver)
         new_ids = [rid for rid in current_ids if rid not in existing_ids]
 
@@ -134,8 +134,9 @@ def accept_new_ride(driver, existing_ids):
                 if id_element.text.strip() == new_id:
                     accept_button = row.find_element(By.CSS_SELECTOR, ".accept-ride button.button")
                     ActionChains(driver).click(accept_button).perform()
+                    logging.info(f"Clicked 'Accept' button for reservation ID: {new_id}")
+                    time.sleep(2)
                     break
-            logging.info(f"Clicked 'Accept' button for reservation ID: {new_id}")
             return new_id
         else:
             logging.info("No new reservation IDs found.")
@@ -203,10 +204,17 @@ def handle_notifications(driver, initial_reservation_ids):
                             existing_ids.append(new_id)
                         
                         try:
-                            wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal")))
-                            process_modal_after_notification(driver)
+                            modal = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal")))
+                            if modal.is_displayed():
+                                logging.info("Modal is visible, processing...")
+                                process_modal_after_notification(driver)
+                            else:
+                                logging.warning("Modal element found but not displayed")
+                                time.sleep(3)
+                                continue
                         except TimeoutException:
                             logging.warning("Modal not appeared")
+                            time.sleep(3)
                             continue
                     else:
                         logging.info(f"Notification skipped - Title: {title}")
