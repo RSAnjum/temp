@@ -166,7 +166,7 @@ def handle_notifications(driver, initial_reservation_ids):
     driver.execute_script(script)
     logging.info("Notification interception enabled")
 
-    wait = WebDriverWait(driver, 2, poll_frequency=0.1)  # Reduced timeout from 3 to 2
+    wait = WebDriverWait(driver, 10, poll_frequency=0.5)  # Reduced timeout from 3 to 2
     poll_interval = 0.5  # Increased from 0.1 to 0.5 for efficiency
     notification_count = 0
     existing_ids = initial_reservation_ids
