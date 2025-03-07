@@ -187,7 +187,7 @@ def handle_notifications(driver, initial_reservation_ids):
                     if title == "New Ride":
                         logging.info("New ride notification detected")
                         try:
-                            reset_all_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div.clear-filter#reset-all-button")))
+                            reset_all_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "clear-filter")))
                             ActionChains(driver).click(reset_all_button).perform()
                             logging.info("Clicked 'Reset All' button")
                         except TimeoutException:
