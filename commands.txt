@@ -1,0 +1,157 @@
+First: Copy the files to ec2 instance
+
+#!/bin/bash
+
+# Copy files
+echo "Copy Files:"
+scp -i ssh_key.pem opb.py user@instance_public_dns:
+scp -i ssh_key.pem create_service.sh user@instance_public_dns:
+scp -i ssh_key.pem setup_and_run.sh user@instance_public_dns:
+scp -i ssh_key.pem start_python_in_screen.sh user@instance_public_dns:
+
+echo "Secure copy complete."
+echo "ssh -i key_name.pem user@instance_public_dns"
+echo "Run: sudo yum install -y dos2unix"
+echo "Convert from windows CRLF line endings to Unix style"
+echo "Run: dos2unix ./setup_and_run.sh"
+echo "Run: dos2unix ./create_service.sh"
+echo "Run: dos2unix ./start_python_in_screen.sh"
+echo "Make scripts executable"
+echo "Run: chmod +x ./setup_and_run.sh"
+echo "Run: chmod +x ./create_service.sh"
+echo "Run: chmod +x ./start_python_in_screen.sh"
+echo "Run: ./setup_and_run.sh to install dependencies"
+
+
+Second: Install Dependencies
+
+#!/bin/bash
+
+# Update system
+sudo yum update -y
+
+# Install necessary packages
+sudo yum install -y python3 git
+curl -O https://bootstrap.pypa.io/get-pip.py
+python3 get-pip.py
+curl -O https://bootstrap.pypa.io/get-pip.py
+python3 get-pip.py
+sudo yum install -y Xvfb xorg-x11-xauth xorg-x11-utils xorg-x11-server-utils
+sudo yum install -y libXfont xorg-x11-fonts* xorg-x11-server-Xvfb
+sudo yum install -y alsa-lib cups-libs gtk3 libXScrnSaver libXcomposite libXcursor libXi libXtst nss pango GConf2 at-spi2-core
+sudo yum install -y unzip jq curl
+
+# Get the latest stable version of Chrome
+LATEST_VERSION=$(curl -s https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json | jq -r '.channels.Stable.version')
+echo "Latest stable version: $LATEST_VERSION"
+
+# Download Chrome and ChromeDriver
+wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$LATEST_VERSION/linux64/chrome-linux64.zip
+wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$LATEST_VERSION/linux64/chromedriver-linux64.zip
+
+# Unzip and install
+unzip chrome-linux64.zip
+unzip chromedriver-linux64.zip
+
+# Move to standard locations
+sudo mv chrome-linux64 /opt/chrome
+sudo mv chromedriver-linux64 /opt/chromedriver
+
+# Create symlinks
+sudo ln -s /opt/chrome/chrome /usr/local/bin/google-chrome
+sudo ln -s /opt/chromedriver/chromedriver /usr/local/bin/chromedriver
+
+# Verify versions
+google-chrome --version
+chromedriver --version
+
+# Install additional dependencies
+sudo curl https://intoli.com/install-google-chrome.sh | bash
+sudo ln -s /usr/bin/google-chrome /usr/bin/chromium
+chromedriver --version
+google-chrome --version
+sudo yum install -y gtk3-devel gtk2-devel libnotify-devel GConf2 nss libXScrnSaver alsa-lib
+
+# Install Python packages
+pip3 install selenium webdriver-manager pyvirtualdisplay
+
+# Setup install screen
+sudo yum install screen -y
+
+echo "Setup complete."
+echo "Run: sudo ./create_service.sh to create a systemd service for the script."
+
+
+Third: Create a service to run the script so it can survive reboots
+
+#!/bin/bash
+
+# Variables (adjust these as needed)
+SERVICE_NAME="AutoStartPythonScript"
+SCRIPT_PATH="/home/ec2-user/opb.py"
+WORKING_DIR="/home/ec2-user"
+USER="ec2-user"
+SCREEN_SESSION_NAME="my_script_session"
+OUTPUT_LOG="/home/ec2-user/output.log"
+ERROR_LOG="/home/ec2-user/error.log"
+
+# Path to the service file
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+
+# Check if the script is run as root
+if [ "$EUID" -ne 0 ]; then
+  echo "This script must be run as root. Use sudo."
+  exit 1
+fi
+
+# Check if the Python script exists
+if [ ! -f "$SCRIPT_PATH" ]; then
+  echo "Error: Python script not found at $SCRIPT_PATH"
+  exit 1
+fi
+
+# Check if the working directory exists
+if [ ! -d "$WORKING_DIR" ]; then
+  echo "Error: Working directory $WORKING_DIR does not exist"
+  exit 1
+fi
+
+# Create the service file
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=My Python Script in Screen
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/screen -dmS $SCREEN_SESSION_NAME /usr/bin/python3 $SCRIPT_PATH
+WorkingDirectory=$WORKING_DIR
+Restart=always
+User=$USER
+StandardOutput=file:$OUTPUT_LOG
+StandardError=file:$ERROR_LOG
+ExecStop=/usr/bin/screen -S $SCREEN_SESSION_NAME -X quit
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Set appropriate permissions for the service file
+chmod 644 "$SERVICE_FILE"
+
+# Reload systemd daemon to recognize the new service
+systemctl daemon-reload
+
+# Enable the service to start on boot
+systemctl enable "$SERVICE_NAME.service"
+
+# Start the service
+systemctl start "$SERVICE_NAME.service"
+
+# Check the status of the service
+echo "Service created and started. Checking status..."
+systemctl status "$SERVICE_NAME.service"
+
+echo "Service setup complete!"
+echo "To attach to the screen session, run: screen -r $SCREEN_SESSION_NAME"
+echo "To detach from the screen session, press Ctrl+A, then D"
