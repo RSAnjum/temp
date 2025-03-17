@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 import os
 import time
 import logging
@@ -147,77 +147,119 @@ def accept_new_ride(driver, existing_ids):
 
 def handle_notifications(driver, initial_reservation_ids):
     """Enable and intercept browser notifications, then accept new rides."""
-    logging.info("Setting up notification permissions and interception...")
-    script = """
-    if (Notification.permission !== 'granted') {
-        Notification.requestPermission();
-    }
-    window.notifications = [];
-    window.originalNotification = Notification;
-    window.Notification = function(title, options) {
-        var notification = new window.originalNotification(title, options);
-        window.notifications.push({title: title, options: options, timestamp: Date.now()});
-        console.log('Notification intercepted:', title, options);
-        return notification;
-    };
-    window.Notification.prototype = window.originalNotification.prototype;
-    window.Notification.permission = window.originalNotification.permission;
-    """
-    driver.execute_script(script)
-    logging.info("Notification interception enabled")
-
-    wait = WebDriverWait(driver, 2, poll_frequency=0.1)  # Reduced timeout from 3 to 2
-    poll_interval = 0.2  # Increased from 0.1 to 0.5 for efficiency
+    max_retries = 3
+    retries = 0
     notification_count = 0
     existing_ids = initial_reservation_ids
 
-    while True:
+    while retries < max_retries:
         try:
-            notifications = driver.execute_script("""
-            return window.notifications.splice(0, window.notifications.length).filter(n => 
-                n.timestamp > Date.now() - 3600000);
-            """)
-            if notifications:
-                for notification in notifications:
-                    notification_count += 1
-                    title = notification.get('title', 'No Title')
-                    options = notification.get('options', {})
-                    body = options.get('body', 'No Body')
-                    timestamp = notification.get('timestamp')
+            # Setup notification interception
+            logging.info("Setting up notification permissions and interception...")
+            script = """
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission();
+            }
+            window.notifications = [];
+            window.originalNotification = Notification;
+            window.Notification = function(title, options) {
+                var notification = new window.originalNotification(title, options);
+                window.notifications.push({title: title, options: options, timestamp: Date.now()});
+                console.log('Notification intercepted:', title, options);
+                return notification;
+            };
+            window.Notification.prototype = window.originalNotification.prototype;
+            window.Notification.permission = window.originalNotification.permission;
+            """
+            driver.execute_script(script)
+            logging.info("Notification interception enabled")
 
-                    logging.info(f"Notification received - Title: '{title}', Body: '{body}'")
-                    logging.info(f"Total notifications received: {notification_count}")
+            wait = WebDriverWait(driver, 5)  # Increased timeout for stability
+            poll_interval = 0.5  # Adjusted polling frequency
 
-                    if title == "New Ride":
-                        logging.info("New ride notification detected")
-                        try:
-                            reset_all_button = driver.find_element(By.CLASS_NAME, "clear-filter")
-                            reset_all_button.click()
-                            logging.info("Clicked 'Reset All' button")
-                        except TimeoutException:
-                            logging.error("Reset All button not found")
-                            driver.refresh()
-                            continue
+            # Main notification handling loop
+            while True:
+                try:
+                    notifications = driver.execute_script("""
+                    return window.notifications.splice(0, window.notifications.length).filter(n => 
+                        n.timestamp > Date.now() - 3600000);
+                    """)
+                    
+                    if notifications:
+                        for notification in notifications:
+                            notification_count += 1
+                            title = notification.get('title', 'No Title')
+                            options = notification.get('options', {})
+                            body = options.get('body', 'No Body')
+                            timestamp = notification.get('timestamp')
 
-                        new_id = accept_new_ride(driver, existing_ids)
-                        if new_id:
-                            existing_ids.append(new_id)
-                        
-                        try:
-                            modal = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "modal")))
-                            if modal.is_displayed():
-                                logging.info("Modal is visible, processing...")
-                                process_modal_after_notification(driver)
+                            logging.info(f"Notification received - Title: '{title}', Body: '{body}'")
+                            logging.info(f"Total notifications received: {notification_count}")
+
+                            if title == "New Ride":
+                                logging.info("New ride notification detected")
+                                try:
+                                    reset_all_button = wait.until(
+                                        EC.element_to_be_clickable((By.CLASS_NAME, "clear-filter"))
+                                    )
+                                    reset_all_button.click()
+                                    logging.info("Clicked 'Reset All' button")
+                                except TimeoutException:
+                                    logging.warning("Reset All button not found, refreshing...")
+                                    driver.refresh()
+                                    continue
+
+                                new_id = accept_new_ride(driver, existing_ids)
+                                if new_id:
+                                    existing_ids.append(new_id)
+                                
+                                try:
+                                    modal = wait.until(
+                                        EC.visibility_of_element_located((By.CLASS_NAME, "modal"))
+                                    )
+                                    if modal.is_displayed():
+                                        logging.info("Modal is visible, processing...")
+                                        process_modal_after_notification(driver)
+                                    else:
+                                        logging.warning("Modal element found but not displayed")
+                                        continue
+                                except TimeoutException:
+                                    logging.warning("Modal did not appear within timeout")
+                                    continue
                             else:
-                                logging.warning("Modal element found but not displayed")
-                                continue
-                        except TimeoutException:
-                            logging.warning("Modal not appeared")
-                            continue
-                    else:
-                        logging.info(f"Notification skipped - Title: {title}")
+                                logging.info(f"Notification skipped - Title: {title}")
+                    
+                    # Reset retry counter on successful iteration
+                    retries = 0
+                    time.sleep(poll_interval)
+
+                except (WebDriverException, TimeoutException) as e:
+                    logging.error(f"Notification processing error: {e}")
+                    retries += 1
+                    if retries >= max_retries:
+                        raise  # Re-raise to trigger outer retry logic
+                    logging.info(f"Retrying... Attempt {retries}/{max_retries}")
+                    time.sleep(2)  # Short delay before retry
+                    driver.refresh()
+
+        except (WebDriverException, TimeoutException) as e:
+            logging.error(f"Notification handling failed (attempt {retries+1}): {e}")
+            retries += 1
+            if retries < max_retries:
+                logging.info("Refreshing browser and retrying...")
+                driver.refresh()
+                time.sleep(5)
+            else:
+                logging.error("Max retries reached. Restarting browser...")
+                driver.quit()
+                main()  # Restart the entire flow
+                return
+
         except Exception as e:
-            logging.error(f"Error in notification handling loop: {e}")
+            logging.error(f"Unexpected error in notification handling: {e}")
+            driver.quit()
+            main()  # Restart the entire flow
+            return
 
 def is_within_16_hours(time_str):
     try:
@@ -378,16 +420,18 @@ def main():
     
     chrome_options.add_argument(f"--user-data-dir={profile_dir}")
     chrome_options.add_argument("--window-size=1366,768")
+    chrome_options.add_argument("--disable-gpu")  # Crucial for headless stability
+    chrome_options.add_argument("--no-sandbox")  # Always enable sandbox protection
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/90.0.4430.212 Safari/537.36")
     chrome_options.add_argument("--blink-settings=imagesEnabled=false")  # Disable images
     chrome_options.add_experimental_option("prefs", {"profile.default_content_setting_values": {"notifications": 1},
                                                      "profile.content_settings.exceptions": {"notifications": {"https://dcp.orange.sixt.com,*": {"setting": 1}}}})
     
     if not testing_mode:
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--headless=new")
     
     driver = webdriver.Chrome(options=chrome_options)
     driver.set_page_load_timeout(10)  # Set page load timeout
